@@ -1,0 +1,8 @@
+PathWalker-Breaker:
+  Board:
+    Planar square grid.
+  2 players:
+    Walker: Wants to visit as many nodes as possible. Per turn can move to adjacent vertex
+    Breaker: Wants to limit number of nodes walker visits. Can break n edges per turn
+  Rules:
+    Walker cannot return to vertices.

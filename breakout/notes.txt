@@ -1,0 +1,1 @@
+Standard breakout game: break bricks with ball to win without ball going out of bounds

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8"/>
+	<title>Branching Balls</title>
+	<style>
+		*{padding:0;margin: 0;}
+		canvas{background: #eee; display: :block; margin: 0 auto;}
+	</style>
+</head>
+<body>
+
+<canvas id="myCanvas" width="480" height="320"></canvas>
+
+<script>
+	//Store canvas element in variable
+	var canvas = document.getElementById("myCanvas");
+	//Store context of canvas(used to draw)
+	var ctx = canvas.getContext("2d");
+
+	var x = canvas.width/2;
+	var y = canvas.height-30;
+	var dx = 2;
+	var dy = -2;
+	var r = 10;
+	var bound = 100;
+	var balls = []
+
+	function makeBall(x,y,dx,dy){
+		var ball = {
+			'x':x,
+			'y':y,
+			'dx':dx,
+			'dy':dy,
+			'drawBall': function(){
+				ctx.beginPath();
+				ctx.arc(this.x, this.y, r, 0, Math.PI*2);
+				ctx.fillStyle = "#0095DD";
+				ctx.fill();
+				ctx.closePath();
+			},
+			'update': function(){
+				this.x = this.x+this.dx;
+				this.y = this.y+this.dy;
+			},
+			'detectC': function(){
+				y_p = this.y+this.dy
+				x_p = this.x+this.dx
+				flag = false;
+				if(y_p < 0 || y_p > canvas.height){
+					this.dy = -this.dy;
+					if(balls.length <= bound){
+						ball = makeBall(this.x,this.y,-this.dx,this.dy);
+						balls.push(ball);
+					}
+				}
+				if(x_p < 0 || x_p > canvas.width){
+					this.dx = -this.dx;
+					if(balls.length <= bound){
+						ball = makeBall(this.x,this.y,this.dx,-this.dy);
+						balls.push(ball);
+					}
+				}
+			}
+		}
+
+		return ball;
+	}
+
+	ball_0 = makeBall(x,y,dx,dy);
+	balls.push(ball_0);
+
+	function draw() {
+		//drawing code
+		ctx.clearRect(0,0,canvas.width,canvas.height);
+		//Draw ball(circle)
+		for (let i = 0; i < balls.length; i++){
+			ball_i = balls[i];
+			ball_i.update();
+			ball_i.drawBall();
+			ball_i.detectC();
+		}
+	}
+	//Draw called every 10 milliseconds
+	setInterval(draw,10);
+
+
+</script>
+
+</body>
+</html>

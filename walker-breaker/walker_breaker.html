@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8"/>
+	<title>PathWalker Breaker</title>
+	<style>
+		*{padding:0;margin: 0;}
+		canvas{background: #eee; display: :block; margin: 0 auto;}
+	</style>
+</head>
+<body>
+
+<canvas id="myCanvas" width="480" height="320"></canvas>
+
+<script>
+	//Store canvas element in variable
+	var canvas = document.getElementById("myCanvas");
+	//Store context of canvas(used to draw)
+	var ctx = canvas.getContext("2d");
+	//Construct board
+	//Rows
+	var xBuffer = 10;
+	var yBuffer = 10;
+	var m = 10;
+	//Columns
+	var n = 10;
+	var walker_edges = 0;
+	var r = 5;
+	var verts = [];
+	var rightPressed = false;
+	var leftPressed = false;
+	var upPressed = false;
+	var downPressed = false;
+	var spacePressed = false;
+	var walker_turn = true;
+	var breaker_advantage = 1;
+	var breaker_count = breaker_advantage;
+	//Timeout function
+	const delay = ms => new Promise(res => setTimeout(res, ms));
+
+	document.addEventListener("keydown", keyDownHandler, false);
+	document.addEventListener("keyup", keyUpHandler, false);
+
+	function keyDownHandler(e) {
+	    if(e.key == "Right" || e.key == "ArrowRight") {
+	        rightPressed = true;
+	    }
+	    else if(e.key == "Left" || e.key == "ArrowLeft") {
+	        leftPressed = true;
+	    }
+	    else if(e.key == "Down" || e.key == "ArrowDown"){
+	    	downPressed = true;
+	    }
+	    else if(e.key == "Up" || e.key == "ArrowUp"){
+	    	upPressed = true;
+	    }
+	    else if(e.key == " "){
+	    	spacePressed = true;
+	    }
+	}
+
+	function keyUpHandler(e) {
+	    if(e.key == "Right" || e.key == "ArrowRight") {
+	        rightPressed = false;
+	    }
+	    else if(e.key == "Left" || e.key == "ArrowLeft") {
+	        leftPressed = false;
+	    }
+	    else if(e.key == "Down" || e.key == "ArrowDown"){
+	    	downPressed = false;
+	    }
+	    else if(e.key == "Up" || e.key == "ArrowUp"){
+	    	upPressed = false;
+	    }
+	    else if(e.key == " "){
+	    	spacePressed = false;
+	    }
+	}
+
+	function index_to_loc(i,j){
+		x = xBuffer;
+		y = yBuffer;
+		dx = (canvas.width-2*xBuffer)/n;
+		dy = (canvas.height-2*yBuffer)/m;
+		x = x+dx*j;
+		y = y+dy*i;
+		return [x,y];
+	}
+
+	var walker = {
+		'row': 0,
+		'col': 0,
+		'edge_count': 0,
+		'drawWalker': function(){
+			loc = index_to_loc(this.row,this.col);
+			x = loc[0];
+			y = loc[1];
+			ctx.beginPath();
+			ctx.arc(x, y, r, 0, Math.PI*2);
+			ctx.fillStyle = "#000000";
+			ctx.fill();
+			ctx.closePath();
+		},
+		'isStuck': function(){
+			id = this.row*n + this.col;
+			left = verts[this.row][Math.max(this.col-1,0)];
+			right = verts[this.row][Math.min(this.col+1,n-1)];
+			up = verts[Math.max(this.row-1,0)][this.col];
+			down = verts[Math.min(this.row+1,n-1)][this.col];
+			left_edge = breaker.edges[id.toString()+left.id.toString()] != undefined;
+			right_edge = breaker.edges[id.toString()+right.id.toString()] != undefined;
+			up_edge = breaker.edges[id.toString()+up.id.toString()] != undefined;
+			down_edge = breaker.edges[id.toString()+down.id.toString()] != undefined;
+
+			return (left.visited || left_edge) && (right.visited || right_edge) && (down.visited || down_edge) && (up.visited || up_edge);
+		}
+	}
+
+	var breaker = {
+		'row': m-1,
+		'col': n-1,
+		'edges': {},
+		'u': null,
+		'v': null,
+		'drawBreaker': function(){
+			loc = index_to_loc(this.row,this.col);
+			x = loc[0];
+			y = loc[1];
+			ctx.beginPath();
+			ctx.arc(x, y, r, 0, Math.PI*2);
+			ctx.fillStyle = "#00FF00";
+			ctx.fill();
+			ctx.closePath();
+		}
+	}
+	//Vertices numbered 0 to m*n-1
+
+	function makeVert(num){
+		var vert = {
+			'id': num,
+			'row': Math.floor(num/10),
+			'col': num%10,
+			'visited': false,
+			'drawVert': function(){
+				loc = index_to_loc(this.row,this.col);
+				x = loc[0];
+				y = loc[1];
+				ctx.beginPath();
+				ctx.arc(x, y, r, 0, Math.PI*2);
+			if(this.visited){
+				ctx.fillStyle = "#FF0000"
+			}
+			else{
+				ctx.fillStyle = "#0095DD";
+			}
+				ctx.fill();
+				ctx.closePath();
+			}
+		}
+		return vert;
+	}
+
+	//Generating vertices
+	for(let i = 0; i < m; i++){
+		var verts_i = [];
+		for(let j = 0; j < n; j++){
+			vert = makeVert(i*n+j);
+			verts_i.push(vert);
+		}
+		verts.push(verts_i);
+	}
+
+	verts[0][0].visited = true;
+
+	//Draw square mesh graph
+	function drawGraph(){
+		for(let i = 0; i < m; i++){
+			for(let j = 0; j < n; j++){
+				vert = verts[i][j];
+				vert.drawVert();
+			}
+		}
+	}
+
+	function drawEdge(u,v){
+		res = index_to_loc(u.row,u.col);
+		u_x = res[0];
+		u_y = res[1];
+		res = index_to_loc(v.row,v.col);
+		v_x = res[0];
+		v_y = res[1];
+		ctx.beginPath();
+		ctx.moveTo(u_x,u_y);
+		ctx.lineTo(v_x,v_y);
+		ctx.strokeStyle = 'green';
+		ctx.lineWidth=3;
+		ctx.stroke();
+		ctx.closePath();
+	}
+
+	function drawEdges(){
+		for (let key in breaker.edges){
+			res = breaker.edges[key];
+			u = res[0];
+			v = res[1];
+			drawEdge(u,v);
+		}
+	}
+
+	function is_adjacent(u,v){
+		return (u.row == v.row && (u.col == v.col-1 || u.col == v.col+1)) || (u.col == v.col && (u.row == v.row-1 || u.row == v.row+1))
+	}
+
+	function draw() {
+		//drawing code
+		ctx.clearRect(0,0,canvas.width,canvas.height);
+		//Draw ball(circle)
+		drawGraph();
+		drawEdges();
+		walker.drawWalker();
+		if(walker.isStuck()){
+			alert("Walker got " + walker_edges + " edges");
+			document.location.reload();
+			clearInterval(interval);
+		}
+
+		if(walker_turn){
+			u = verts[walker.row][walker.col];
+			if(upPressed){
+				//Wait a second
+				new_row = Math.max(walker.row-1,0);
+				//delay(1000);
+				upPressed = false;
+				v = verts[new_row][walker.col];
+				hash = u.id.toString()+v.id.toString();
+				next_visited = verts[new_row][walker.col].visited;
+				if(!next_visited && breaker.edges[hash] == undefined){
+					walker.row = new_row;
+					verts[new_row][walker.col].visited = true;
+					walker_edges+=1;
+					walker_turn = false;
+				}
+			}
+			else if(downPressed){
+				new_row  = Math.min(walker.row+1,m-1);
+				//delay(1000);
+				downPressed = false;
+				v = verts[new_row][walker.col];
+				hash = u.id.toString()+v.id.toString();
+				next_visited = verts[new_row][walker.col].visited;
+				if(!next_visited && breaker.edges[hash] == undefined){
+					walker.row = new_row;
+					verts[new_row][walker.col].visited = true;
+					walker_edges+=1;
+					walker_turn = false;
+				}
+			}
+			else if(rightPressed){
+				new_col = Math.min(walker.col+1,n-1);
+				//delay(1000);
+				rightPressed = false;
+				v = verts[walker.row][new_col];
+				hash = u.id.toString()+v.id.toString();
+				next_visited = verts[walker.row][new_col].visited;
+				if(!next_visited && breaker.edges[hash] == undefined){
+					walker.col = new_col;
+					verts[walker.row][new_col].visited = true;
+					walker_edges+=1;
+					walker_turn = false;
+				}
+			}
+			else if(leftPressed){
+				new_col = Math.min(walker.col-1,n-1);
+				//delay(1000);
+				leftPressed = false;
+				v = verts[walker.row][new_col];
+				hash = u.id.toString()+v.id.toString();
+				next_visited = verts[walker.row][new_col].visited;
+				if(!next_visited && breaker.edges[hash] == undefined){
+					walker.col = new_col;
+					verts[walker.row][new_col].visited = true;
+					walker_edges+=1;
+					walker_turn = false;
+				}
+			}
+		}
+		else{
+			//Breaker turn
+			if(breaker_count == 0){
+				breaker_count = breaker_advantage;
+				walker_turn = true;
+			}
+			else{
+				breaker.drawBreaker();
+				if(upPressed){
+					//Wait a second
+					new_row = Math.max(breaker.row-1,0);
+					breaker.row = new_row;
+					//delay(1000);
+					upPressed = false;
+				}
+				else if(downPressed){
+					new_row  = Math.min(breaker.row+1,m-1);
+					breaker.row = new_row;
+					//delay(1000);
+					downPressed = false;
+				}
+				else if(rightPressed){
+					new_col = Math.min(breaker.col+1,n-1);
+					breaker.col = new_col;
+					//delay(1000);
+					rightPressed = false;
+				}
+				else if(leftPressed){
+					new_col = Math.min(breaker.col-1,n-1);
+					breaker.col = new_col;
+					//delay(1000);
+					leftPressed = false;
+				}
+				else if(spacePressed){
+					row = breaker.row;
+					col = breaker.col;
+					vert = verts[row][col];
+					if(breaker.u == null){
+						breaker.u = vert;
+					}
+					else{
+						u = breaker.u;
+						v = vert;
+						if(is_adjacent(u,v)){
+							hash1 = u.id.toString()+v.id.toString();
+							hash2 = v.id.toString() + u.id.toString();
+							breaker.edges[hash1] = [u,v];
+							breaker.edges[hash2] = [u,v];
+							breaker_count-=1;
+							breaker.u=null;
+							breaker.v=null;
+						}
+						else{
+							breaker.u = null;
+							breaker.v = null;
+						}
+					}
+				}
+			}
+		}
+	}
+	var interval = setInterval(draw,1);
+
+</script>
+
+</body>
+</html>

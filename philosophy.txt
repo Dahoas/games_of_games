@@ -1,0 +1,5 @@
+Why this exists:
+1. To make interesting games
+2. To play interesting games
+3. To solve interesting games with computational techniques
+4. To apply solutions to interesting domains
